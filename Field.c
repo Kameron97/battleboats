@@ -180,7 +180,38 @@ FieldPosition FieldRegisterEnemyAttack(Field *f, GuessData *gData){
 }
 
 FieldPosition FieldUpdateKnowledge(Field *f, const GuessData *gData){
+    FieldPosition temp = f->field[gData->row][gData->col];
 
+
+    if (gData->hit == HIT_MISS)
+        f->field[gData->row][gData->col] = FIELD_POSITION_EMPTY;
+    else if (gData->hit != HIT_MISS){
+
+
+        switch (gData->hit){
+
+            case HIT_HIT:
+                f->field[gData->row][gData->col];
+                break;
+            case HIT_SUNK_MEDIUM_BOAT:
+                f->field[gData->row][gData->col] = FIELD_POSITION_HIT;
+                f->mediumBoatLives = 0;
+                break;
+            case HIT_SUNK_SMALL_BOAT:
+                f->field[gData->row][gData->col] = FIELD_POSITION_HIT;
+                f->smallBoatLives = 0;
+                break;
+            case HIT_SUNK_LARGE_BOAT:
+                f->field[gData->row][gData->col] = FIELD_POSITION_HIT;
+                f->largeBoatLives = 0;
+                break;
+            case HIT_SUNK_HUGE_BOAT:
+                f->field[gData->row][gData->col] = FIELD_POSITION_HIT;
+                f->hugeBoatLives = 0;
+                break;
+        }
+    }
+    return temp;
 }
 
 uint8_t FieldGetBoatStates(const Field *f){
