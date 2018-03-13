@@ -215,7 +215,19 @@ FieldPosition FieldUpdateKnowledge(Field *f, const GuessData *gData){
 }
 
 uint8_t FieldGetBoatStates(const Field *f){
-
+    uint8_t temp  = FIELD_BOAT_STATUS_HUGE | FIELD_BOAT_STATUS_LARGE | FIELD_BOAT_STATUS_MEDIUM | FIELD_BOAT_STATUS_SMALL; // bitfield of lives of boats
+   
+   if (f->hugeBoatLives == 0) { // if boat type lives are 0
+        temp ^= FIELD_BOAT_STATUS_HUGE; // xor with the status of all 4 boats to set bit to 0 
+    }
+    if (f->largeBoatLives == 0) {
+        temp ^= FIELD_BOAT_STATUS_LARGE;
+    }
+    if (f->mediumBoatLives == 0) {
+        temp ^= FIELD_BOAT_STATUS_MEDIUM;
+    }
+    if (f->smallBoatLives == 0) {
+        temp ^= FIELD_BOAT_STATUS_SMALL;
+    }
+    return temp;
 }
-
-
