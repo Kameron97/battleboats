@@ -75,6 +75,7 @@ static uint8_t AsciiToHex(char in); // converts ASCII encoded hex-char to numeri
  * @return The length of the string stored into `message`.
  */
 int ProtocolEncodeCooMessage(char *message, const GuessData *data){
+    // Got guidance from tutoring on Encoding, and it's pretty straightforward
     StringClearMessage(message);
     char cooMessage[PROTOCOL_MAX_PAYLOAD_LEN];
     sprintf(cooMessage, PAYLOAD_TEMPLATE_COO, data->row, data->col);
@@ -87,6 +88,7 @@ int ProtocolEncodeCooMessage(char *message, const GuessData *data){
  * Follows from ProtocolEncodeCooMessage above.
  */
 int ProtocolEncodeHitMessage(char *message, const GuessData *data){
+    // Got guidance from tutoring on Encoding, and it's pretty straightforward
     StringClearMessage(message);
     char hitMessage[PROTOCOL_MAX_PAYLOAD_LEN];
     sprintf(hitMessage, PAYLOAD_TEMPLATE_HIT, data->row, data->col, data->hit);
@@ -99,6 +101,7 @@ int ProtocolEncodeHitMessage(char *message, const GuessData *data){
  * Follows from ProtocolEncodeCooMessage above.
  */
 int ProtocolEncodeChaMessage(char *message, const NegotiationData *data){
+    // Got guidance from tutoring on Encoding, and it's pretty straightforward
     StringClearMessage(message);
     char chaMessage[PROTOCOL_MAX_PAYLOAD_LEN];
     sprintf(chaMessage, PAYLOAD_TEMPLATE_CHA, data->encryptedGuess, data->hash);
@@ -111,6 +114,7 @@ int ProtocolEncodeChaMessage(char *message, const NegotiationData *data){
  * Follows from ProtocolEncodeCooMessage above.
  */
 int ProtocolEncodeDetMessage(char *message, const NegotiationData *data){
+    // Got guidance from tutoring on Encoding, and it's pretty straightforward
     StringClearMessage(message);
     char detMessage[PROTOCOL_MAX_PAYLOAD_LEN];
     sprintf(detMessage, PAYLOAD_TEMPLATE_DET, data->guess, data->encryptionKey);
@@ -137,16 +141,17 @@ int ProtocolEncodeDetMessage(char *message, const NegotiationData *data){
  * @return A value from the UnpackageDataEnum enum.
  */
 ProtocolParserStatus ProtocolDecode(char in, NegotiationData *nData, GuessData *gData){
-    
     switch(proDecode.state){
     case WAITING:
         // arrow to itself
         if(in != '$'){
+            //printf("in != $\n");
             return PROTOCOL_WAITING;
         } else if(in == '$'){
             // arrow to RECORDING
             proDecode.index = 0;
             proDecode.state = RECORDING;
+            //printf("in == $, go to RECORDING\n");
             return PROTOCOL_PARSING_GOOD;
         }
         break;
@@ -155,9 +160,11 @@ ProtocolParserStatus ProtocolDecode(char in, NegotiationData *nData, GuessData *
         if(in != '*'){
             proDecode.sentence[proDecode.index] = in;
             proDecode.index += 1;
+            //printf("index++\n");
             return PROTOCOL_PARSING_GOOD;
         } else if(in == '*'){
             // arrow to FIRST_CHECKSUM_HALF
+            //printf("in == * so go to FIRST_CHECKSUM_HALF\n");
             proDecode.state = FIRST_CHECKSUM_HALF;
             return PROTOCOL_PARSING_GOOD;
         }
@@ -165,25 +172,29 @@ ProtocolParserStatus ProtocolDecode(char in, NegotiationData *nData, GuessData *
     case FIRST_CHECKSUM_HALF:
         // arrow to SECOND_CHECKSUM_HALF
         if(ValidInput(in) == SUCCESS){
-            proDecode.checksum = AsciiToHex(in) << 4;
+            //printf("Valid input, go to SECOND_CHECKSUM_HALF\n");
+            proDecode.checksum = AsciiToHex(in) << 4; // shift 4 bits left for first half
             proDecode.state = SECOND_CHECKSUM_HALF;
             return PROTOCOL_PARSING_GOOD;
         } else if(ValidInput(in) == STANDARD_ERROR){
             // arrow to WAITING
+            //printf("invalid input, go to WAITING\n");
             proDecode.state = WAITING;
             return PROTOCOL_PARSING_FAILURE;
         }
         break;
     case SECOND_CHECKSUM_HALF:
-        proDecode.checksum |= AsciiToHex(in);
-        compareChecksums = FunctionChecksum(proDecode.sentence);
+        proDecode.checksum |= AsciiToHex(in); // get the second half checksum
+        compareChecksums = FunctionChecksum(proDecode.sentence); // get message checksum
         // arrow to NEWLINE
         if(ValidInput(in) == SUCCESS && compareChecksums == proDecode.checksum){
             proDecode.sentence[proDecode.index] = '\0';
             proDecode.state = NEWLINE;
+            //printf("Checksums equal, go to NEWLINE\n");
             return PROTOCOL_PARSING_GOOD;
         } else if(ValidInput(in) == STANDARD_ERROR || compareChecksums != proDecode.checksum){
             // arrow to WAITING
+            //printf("Invalid input or Checksums unequal\n");
             proDecode.state = WAITING;
             return PROTOCOL_PARSING_FAILURE;
         }
@@ -196,47 +207,60 @@ ProtocolParserStatus ProtocolDecode(char in, NegotiationData *nData, GuessData *
         if(in == '\n'){
             proDecode.state = WAITING;
             stringParser = strtok(proDecode.sentence, ",");
+            //printf("StringParser: %s\n", stringParser);
             if(strcmp(stringParser, "HIT") == 0){
                 parse1 = strtok(NULL, ",");
                 parse2 = strtok(NULL, ",");
                 parse3 = strtok(NULL, "*");
+                //printf("%s\t%s\t%s\n", parse1, parse2, parse3);
                 gData->row = atoi(parse1);
                 gData->col = atoi(parse2);
                 gData->hit = atoi(parse3);
+                //printf("%d\t%d\t%d\n", gData->row, gData->col, gData->hit);
                 return PROTOCOL_PARSED_HIT_MESSAGE;
             } else if(strcmp(stringParser, "COO") == 0){
                 parse1 = strtok(NULL, ",");
                 parse2 = strtok(NULL, "*");
+                //printf("%s\t%s\n", parse1, parse2);
                 gData->row = atoi(parse1);
                 gData->col = atoi(parse2);
+                //printf("%d\t%d\n", gData->row, gData->col);
                 return PROTOCOL_PARSED_COO_MESSAGE;
             } else if(strcmp(stringParser, "CHA") == 0){
                 parse1 = strtok(NULL, ",");
                 parse2 = strtok(NULL, "*");
+                //printf("%s\t%s\n", parse1, parse2);
                 nData->encryptedGuess = atoi(parse1);
                 nData->hash = atoi(parse2);
+                //printf("%d\t%d\n", nData->encryptedGuess, nData->hash);
                 return PROTOCOL_PARSED_CHA_MESSAGE;
             } else if(strcmp(stringParser, "DET") == 0){
                 parse1 = strtok(NULL, ",");
                 parse2 = strtok(NULL, "*");
+                //printf("%s\t%s\n", parse1, parse2);
                 nData->guess = atoi(parse1);
                 nData->encryptionKey = atoi(parse2);
+                //printf("%d\t%d\n", nData->guess, nData->encryptionKey);
                 return PROTOCOL_PARSED_DET_MESSAGE;
             } else {
+                //printf("INCORRECT M_ID!!!\n");
                 return PROTOCOL_PARSING_FAILURE;
             }
         } else {
             // arrow to WAITING on left
+            //printf("in != newline\n");
             proDecode.state = WAITING;
             return PROTOCOL_PARSING_FAILURE;
         }
         break;
     default:
         // Shouldn't come here unless not in a state, FSM FAILURE
+        //printf("default case ERROR\n");
         return PROTOCOL_PARSING_FAILURE;
         break;
     }
     // if we don't enter switch statement, return FAILURE
+    //printf("FAILURE\n");
     return PROTOCOL_PARSING_FAILURE;
 }
 
@@ -251,7 +275,25 @@ ProtocolParserStatus ProtocolDecode(char in, NegotiationData *nData, GuessData *
  * within this function.
  * @param data The struct used for both input and output of negotiation data.
  */ 
-void ProtocolGenerateNegotiationData(NegotiationData *data);
+void ProtocolGenerateNegotiationData(NegotiationData *data){
+    // random 16-bit number for guess
+    uint16_t actualGuess = rand();
+    data->guess = actualGuess;
+    
+    // random 16-bit number for encryptionKey 
+    uint16_t forEncryptKey = rand();
+    data->encryptionKey = forEncryptKey;
+    
+    // XOR(guess, encryptionKey)
+    data->encryptedGuess = ((data->guess) ^ (data->encryptionKey));
+    
+    // 8-bit value XOR of all bytes of guess and encryptionKey
+    uint8_t forHash = data->guess >> 8;
+    forHash ^= data->guess;
+    forHash ^= (data->encryptionKey >> 8);
+    forHash ^= data->encryptionKey;
+    data->hash = forHash;
+}
 
 /**
  * Validates that the negotiation data within 'data' is correct according to the algorithm given in
@@ -261,7 +303,27 @@ void ProtocolGenerateNegotiationData(NegotiationData *data);
  * @param data A filled NegotiationData struct that will be validated.
  * @return TRUE if the NegotiationData struct is consistent and FALSE otherwise.
  */
-uint8_t ProtocolValidateNegotiationData(const NegotiationData *data);
+uint8_t ProtocolValidateNegotiationData(const NegotiationData *data){
+    // How to check for data->guess and key when rand()?
+    
+    // check for data->encryptedGuess
+    if(data->encryptedGuess != ((data->guess) ^ (data->encryptionKey))){
+        //return FALSE;
+        return STANDARD_ERROR;
+    }
+    // check for data->hash
+    uint8_t forHash = (data->guess >> 8);
+    forHash ^= data->guess;
+    forHash ^= (data->encryptionKey >> 8);
+    forHash ^= data->encryptionKey;
+    if(forHash != data->hash){
+        //return FALSE;
+        return STANDARD_ERROR;
+    }
+    // NegotiationData struct is consistent
+    //return TRUE;
+    return SUCCESS;
+}
 
 /**
  * This function returns a TurnOrder enum type representing which agent has won precedence for going
@@ -276,9 +338,30 @@ uint8_t ProtocolValidateNegotiationData(const NegotiationData *data);
  * @param oppData The negotiation data representing the opposing agent.
  * @return A value from the TurnOrdering enum representing which agent should go first.
  */
-TurnOrder ProtocolGetTurnOrder(const NegotiationData *myData, const NegotiationData *oppData);
+TurnOrder ProtocolGetTurnOrder(const NegotiationData *myData, const NegotiationData *oppData){
+    // XOR(myData.encryptionKey, oppData.encryptionKey)
+    uint32_t data = (myData->encryptionKey ^ oppData->encryptionKey);
+    // check least significant bit and compare with who is closest
+    if((data & 0x01) == 1){
+        if(myData->guess > oppData->guess){
+            return TURN_ORDER_START;
+        } else if(myData->guess < oppData->guess){
+            return TURN_ORDER_DEFER;
+        } else { // TIE!
+            return TURN_ORDER_TIE;
+        }
+    } else { // (data & 0x01) == 0
+        if(myData->guess > oppData->guess){
+            return TURN_ORDER_DEFER;
+        } else if(myData->guess < oppData->guess){
+            return TURN_ORDER_START;
+        } else { // TIE!
+            return TURN_ORDER_TIE;
+        }
+    }
+}
 
-
+// Got guidance from tutoring
 static void StringClearMessage(char in[]){
     int i;
     for(i = 0; i < PROTOCOL_MAX_MESSAGE_LEN; i++){
@@ -286,6 +369,7 @@ static void StringClearMessage(char in[]){
     }
 }
 
+// Got guidance from tutoring
 static uint8_t FunctionChecksum(char in[]){
     uint8_t bitOp = 0;
     int i;
@@ -308,6 +392,7 @@ static int ValidInput(char in){
     return STANDARD_ERROR;
 }
 
+// Got guidance from tutoring
 static uint8_t AsciiToHex(char in){
     if(ValidInput(in) == STANDARD_ERROR){
         return STANDARD_ERROR;
