@@ -6,12 +6,15 @@
 
 // **** Include libraries here ****
 // Standard libraries
-#include <stdio.h>
-
+#include <stdio.h> 
+#include <string.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <limits.h>
+#include <ctype.h>
 //CMPE13 Support Library
 #include "Agent.h"
 #include "CircularBuffer.h"
-// #include "Leds.h"
 #include "Oled.h"
 #include "Buttons.h"
 #include "Protocol.h"
@@ -35,6 +38,7 @@ static Field yourField, enemyField;
 static GuessData yourGData, enemyGData;
 static NegotiationData yourNData, enemyNData;
 static AgentState state = AGENT_STATE_GENERATE_NEG_DATA;
+static FieldOledTurn status = FIELD_OLED_TURN_NONE; 
 static ProtocolParserStatus proParserStatus;
 static TurnOrder getTurnOrder;
 static AgentEvent getAgentEvent;
@@ -55,6 +59,17 @@ static uint8_t oppData;
 void AgentInit(void){
     FieldInit(&yourField, FIELD_POSITION_EMPTY);
     FieldInit(&enemyField, FIELD_POSITION_UNKNOWN);
+
+    int value = 0;
+
+    while (value != 1){
+    	FieldAddBoat(&yourField, rand()%FIELD_ROWS, rand()%FIELD_COLS, rand()%4, FIELD_BOAT_SMALL);
+    	FieldAddBoat(&yourField, rand()%FIELD_ROWS, rand()%FIELD_COLS, rand()%4, FIELD_BOAT_MEDIUM);
+    	FieldAddBoat(&yourField, rand()%FIELD_ROWS, rand()%FIELD_COLS, rand()%4, FIELD_BOAT_LARGE);
+    	FieldAddBoat(&yourField, rand()%FIELD_ROWS, rand()%FIELD_COLS, rand()%4, FIELD_BOAT_HUGE);
+
+    	value = 1;
+    }
 }
 
 /**
@@ -129,14 +144,17 @@ int AgentRun(char in, char *outBuffer){
                 // arrow to SEND_GUESS
                 if(getTurnOrder == TURN_ORDER_START){
                     state = AGENT_STATE_SEND_GUESS;
-                    
+                    status = FIELD_OLED_TURN_MINE;
+                    FieldOledDrawScreen(&yourField, enemyField, status);
                     // Field_stuff
                     
                     
                 } else if(getTurnOrder == TURN_ORDER_DEFER) {
                     // arrow to WAIT_FOR_GUESS
                     state = AGENT_STATE_WAIT_FOR_GUESS;
-                    
+                    status = FIELD_OLED_TURN_THEIRS;
+                    FieldOledDrawScreen(&yourField, enemyField, status);
+
                     // Field_stuff
                     
                     
@@ -166,31 +184,66 @@ int AgentRun(char in, char *outBuffer){
         }
         break;
     case AGENT_STATE_SEND_GUESS:
+    	int i = 0;
+    	
+        for (i = 0; i < (BOARD_GetPBClock() / 8); i++);
+
+       while (FieldAt(&enemyField, enemyGData.row, enemyGData.col) != FIELD_POSITION_UNKNOWN){
+
+        enemyGData.row =  (rand() % (FIELD_ROWS));
+    	enemyGData.col =  (rand() % (FIELD_ROWS));
+    }
+    state = AGENT_STATE_WAIT_FOR_HIT;
+    return ProtocolEncodeCooMessage()
+
         
-        break;
         
         
     case AGENT_STATE_WAIT_FOR_HIT:
+    if (getAgentEvent == PROTOCOL_PARSED_HIT_MESSAGE){
+    	if(AgentGetEnemyStatus != 0){
+    		FieldUpdateKnowledge(&enemyField, &enemyGData );
+    		FieldOledDrawScreen( &yourField, &enemyField, FIELD_OLED_TURN_THEIRS);
+    		state = AGENT_STATE_WAIT_FOR_GUESS;
+    	}
+    	else{
+    		FieldOledDrawScreen(&yourField, &enemyField, FIELD_OLED_TURN_NONE);
+    		state = AGENT_STATE_WON;
+    	}
+    }
         break;
+    
         
         
     case AGENT_STATE_WAIT_FOR_GUESS:
-        
+        if (getAgentEvent == PROTOCOL_PARSED_COO_MESSAGE){
+        	if (AgentGetStatus() == 0){
+        		FieldOledDrawScreen(&yourField, &enemyField, FIELD_OLED_TURN_NONE);
+        		state = AGENT_STATE_LOST;
+        	}
+        else {
+        	FieldRegisterEnemyAttack(&yourField, enemyGData);
+        	FieldOledDrawScreen(&yourField, &enemyField, FIELD_OLED_TURN_NONE);
+        	state = AGENT_STATE_SEND_GUESS;
+        }
+        ProtocolEncodeHitMessage(outBuffer, enemyGData);
+    }
+
         break;
         
         
     case AGENT_STATE_INVALID:
-        
+        return FALSE;
         break;
         
         
     case AGENT_STATE_LOST:
-        
+        return FALSE;
         break;
         
         
     case AGENT_STATE_WON:
-        
+        return FALSE;
         break;
         
         
