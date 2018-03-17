@@ -35,17 +35,18 @@
 
 // **** Define any module-level, global, or external variables here ****
 static Field yourField, enemyField;
-static GuessData yourGData, enemyGData;
-static NegotiationData yourNData, enemyNData;
-static AgentState state = AGENT_STATE_GENERATE_NEG_DATA;
+static GuessData yourGData, enemyGData; // variables for guess data
+static NegotiationData yourNData, enemyNData; // variables for negotiation data
+static AgentState state = AGENT_STATE_GENERATE_NEG_DATA; // track state machine
 static FieldOledTurn status = FIELD_OLED_TURN_NONE; 
-static ProtocolParserStatus proParserStatus;
-static TurnOrder getTurnOrder;
-static AgentEvent getAgentEvent;
+static ProtocolParserStatus proParserStatus; // return value of ProtocolDecode()
+static TurnOrder getTurnOrder; // variable for TurnOrder from Protocol.c
+static AgentEvent getAgentEvent; // values based on return value of ProtocolDecode()
 
 static int stringLength;
 static uint8_t validNData;
 static uint8_t oppData;
+static int i;
 
 // **** Declare any function prototypes here ****
 
@@ -145,19 +146,12 @@ int AgentRun(char in, char *outBuffer){
                 if(getTurnOrder == TURN_ORDER_START){
                     state = AGENT_STATE_SEND_GUESS;
                     status = FIELD_OLED_TURN_MINE;
-                    FieldOledDrawScreen(&yourField, enemyField, status);
-                    // Field_stuff
-                    
-                    
+                    FieldOledDrawScreen(&yourField, &enemyField, status);
                 } else if(getTurnOrder == TURN_ORDER_DEFER) {
                     // arrow to WAIT_FOR_GUESS
                     state = AGENT_STATE_WAIT_FOR_GUESS;
                     status = FIELD_OLED_TURN_THEIRS;
-                    FieldOledDrawScreen(&yourField, enemyField, status);
-
-                    // Field_stuff
-                    
-                    
+                    FieldOledDrawScreen(&yourField, &enemyField, status);
                 } else if(getTurnOrder == TURN_ORDER_TIE){
                     // arrow to INVALID for TIE
                     OledClear(OLED_COLOR_BLACK);
@@ -184,17 +178,18 @@ int AgentRun(char in, char *outBuffer){
         }
         break;
     case AGENT_STATE_SEND_GUESS:
-    	int i = 0;
+    	// int i;
     	
         for (i = 0; i < (BOARD_GetPBClock() / 8); i++);
 
-       while (FieldAt(&enemyField, enemyGData.row, enemyGData.col) != FIELD_POSITION_UNKNOWN){
+        while (FieldAt(&enemyField, enemyGData.row, enemyGData.col) != FIELD_POSITION_UNKNOWN){
 
-        enemyGData.row =  (rand() % (FIELD_ROWS));
-    	enemyGData.col =  (rand() % (FIELD_ROWS));
-    }
-    state = AGENT_STATE_WAIT_FOR_HIT;
-    return ProtocolEncodeCooMessage()
+            enemyGData.row =  (rand() % (FIELD_ROWS));
+            enemyGData.col =  (rand() % (FIELD_ROWS));
+        }
+        state = AGENT_STATE_WAIT_FOR_HIT;
+        return ProtocolEncodeCooMessage(outBuffer, &yourGData);
+        break;
 
         
         
@@ -203,7 +198,7 @@ int AgentRun(char in, char *outBuffer){
     if (getAgentEvent == PROTOCOL_PARSED_HIT_MESSAGE){
     	if(AgentGetEnemyStatus != 0){
     		FieldUpdateKnowledge(&enemyField, &enemyGData );
-    		FieldOledDrawScreen( &yourField, &enemyField, FIELD_OLED_TURN_THEIRS);
+    		FieldOledDrawScreen(&yourField, &enemyField, FIELD_OLED_TURN_THEIRS);
     		state = AGENT_STATE_WAIT_FOR_GUESS;
     	}
     	else{
@@ -222,11 +217,11 @@ int AgentRun(char in, char *outBuffer){
         		state = AGENT_STATE_LOST;
         	}
         else {
-        	FieldRegisterEnemyAttack(&yourField, enemyGData);
+        	FieldRegisterEnemyAttack(&yourField, &enemyGData);
         	FieldOledDrawScreen(&yourField, &enemyField, FIELD_OLED_TURN_NONE);
         	state = AGENT_STATE_SEND_GUESS;
         }
-        ProtocolEncodeHitMessage(outBuffer, enemyGData);
+        return ProtocolEncodeHitMessage(outBuffer, &enemyGData);
     }
 
         break;
