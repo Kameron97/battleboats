@@ -1,5 +1,5 @@
 //Kameron Gill 
-//Hasam Quyam
+//Hasson Qayum
 
 //Field.c
 
@@ -15,12 +15,11 @@ void FieldInit(Field *f, FieldPosition p)
     int i = 0; //row
     int j = 0; //columns
 
-    while (i < FIELD_ROWS) {
-        while (j < FIELD_COLS) {
+    for (i = 0; i < FIELD_ROWS; i++) {
+        for (j = 0; j < FIELD_COLS; j++) {
             f->field[i][j] = p;
-            j++;
+
         }
-        i++;
     }
 
     // init boat lives for each boat type
@@ -50,22 +49,21 @@ FieldPosition FieldSetLocation(Field *f, uint8_t row, uint8_t col, FieldPosition
 uint8_t FieldAddBoat(Field *f, uint8_t row, uint8_t col, BoatDirection dir, BoatType type)
 {
     int boatLength;
-//    BoatDirection tempDir;
+    //    BoatDirection tempDir;
     BoatType tempBoat = type;
 
     if (tempBoat == FIELD_BOAT_SMALL) {
-        boatLength = 2;
-        tempBoat = FIELD_POSITION_SMALL_BOAT;
-    }
-    else if (tempBoat == FIELD_BOAT_MEDIUM) {
         boatLength = 3;
+        tempBoat = FIELD_POSITION_SMALL_BOAT;
+    } else if (tempBoat == FIELD_BOAT_MEDIUM) {
+        boatLength = 4;
         tempBoat = FIELD_POSITION_MEDIUM_BOAT;
     } else if (tempBoat == FIELD_BOAT_LARGE) {
-        boatLength = 4;
+        boatLength = 5;
         tempBoat = FIELD_POSITION_LARGE_BOAT;
     } else if (tempBoat == FIELD_BOAT_HUGE) {
 
-        boatLength = 5;
+        boatLength = 6;
         tempBoat = FIELD_POSITION_HUGE_BOAT;
     } else {
         boatLength = 0;
@@ -77,47 +75,58 @@ uint8_t FieldAddBoat(Field *f, uint8_t row, uint8_t col, BoatDirection dir, Boat
     case FIELD_BOAT_DIRECTION_NORTH:
         //int i;
         for (i = 0; i < boatLength; i++) {
-            if (row - i < 0)
-                return FALSE;
-
+            if (row - i < 0) {
+                //printf("BN error\n");
+                return STANDARD_ERROR;
+            }
             if (f->field[row - i][col] != FIELD_POSITION_EMPTY)
-                return FALSE;
+                //printf("BN empty error\n");
+                return STANDARD_ERROR;
 
         }
         // int i ;
         for (i = 0; i < boatLength; i++) {
             f->field[row - i][col] = tempBoat;
         }
+        return TRUE;
+
+        break;
     case FIELD_BOAT_DIRECTION_SOUTH:
         // int i = 0;
         for (i = 0; i < boatLength; i++) {
             if (row + i >= FIELD_ROWS) {
-                return FALSE;
+                return STANDARD_ERROR;
             }
             if (f->field[row + i][col] != FIELD_POSITION_EMPTY) {
-                return FALSE;
+                return STANDARD_ERROR;
             }
         }
         // i = 0;
         for (i = 0; i < boatLength; i++) {
             f->field[row + i][col] = tempBoat;
         }
+        return TRUE;
+
+        break;
 
 
     case FIELD_BOAT_DIRECTION_EAST:
         //int i = 0;
         for (i = 0; i < boatLength; i++) {
             if (col + i >= FIELD_COLS) {
-                return FALSE;
+                return STANDARD_ERROR;
             }
             if (f->field[row][col + i] != FIELD_POSITION_EMPTY) {
-                return FALSE;
+                return STANDARD_ERROR;
             }
         }
         // i = 0;
         for (i = 0; i < boatLength; i++) {
             f->field[row][col + i] = tempBoat;
         }
+        return TRUE;
+
+        break;
 
 
 
@@ -125,24 +134,26 @@ uint8_t FieldAddBoat(Field *f, uint8_t row, uint8_t col, BoatDirection dir, Boat
         // int i = 0;
         for (i = 0; i < boatLength; i++) {
             if (col - i < 0) {
-                return FALSE;
+                return STANDARD_ERROR;
             }
             if (f->field[row][col - i] != FIELD_POSITION_EMPTY) {
-                return FALSE;
+                return STANDARD_ERROR;
             }
         }
         //i = 0;
         for (i = 0; i < boatLength; i++) {
             f->field[row][col - i] = tempBoat;
         }
-        //        return TRUE;
+        return TRUE;
+        break;
 
 
 
     }
-    return TRUE;
+    return SUCCESS;
 
 }
+//got help from my tutor on this function
 
 FieldPosition FieldRegisterEnemyAttack(Field *f, GuessData *gData)
 {
@@ -172,6 +183,7 @@ FieldPosition FieldRegisterEnemyAttack(Field *f, GuessData *gData)
     return temp;
 
 }
+//got help from my tutor on this function
 
 FieldPosition FieldUpdateKnowledge(Field *f, const GuessData *gData)
 {
@@ -185,7 +197,7 @@ FieldPosition FieldUpdateKnowledge(Field *f, const GuessData *gData)
 
         switch (gData->hit) {
 
-       
+
         case HIT_SUNK_MEDIUM_BOAT:
             f->field[gData->row][gData->col] = FIELD_POSITION_HIT;
             f->mediumBoatLives = 0;
@@ -209,10 +221,13 @@ FieldPosition FieldUpdateKnowledge(Field *f, const GuessData *gData)
 
 uint8_t FieldGetBoatStates(const Field *f)
 {
-    uint8_t temp = FIELD_BOAT_STATUS_HUGE | FIELD_BOAT_STATUS_LARGE | FIELD_BOAT_STATUS_MEDIUM | FIELD_BOAT_STATUS_SMALL; // bitfield of lives of boats
+    // bitfield of lives of boats
+    uint8_t temp = FIELD_BOAT_STATUS_HUGE | FIELD_BOAT_STATUS_LARGE |
+            FIELD_BOAT_STATUS_MEDIUM | FIELD_BOAT_STATUS_SMALL;
 
     if (f->hugeBoatLives == 0) { // if boat type lives are 0
-        temp ^= FIELD_BOAT_STATUS_HUGE; // xor with the status of all 4 boats to set bit to 0 
+        // xor with the status of all 4 boats to set bit to 0 
+        temp ^= FIELD_BOAT_STATUS_HUGE;
     }
     if (f->largeBoatLives == 0) {
         temp ^= FIELD_BOAT_STATUS_LARGE;
