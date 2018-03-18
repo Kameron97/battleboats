@@ -47,7 +47,8 @@ typedef struct {
 
 // Initialize our struct
 static ProtocolDecodeVariables proDecode = {
-    {}, 0, WAITING, 0};
+    {}, 0, WAITING, 0
+};
 //proDecode = {{}, 0, WAITING, 0};
 //proDecode.index = 0;
 //proDecode.state = WAITING;
@@ -393,6 +394,8 @@ static uint8_t FunctionChecksum(char in[])
     return bitOp;
 }
 
+// Helper function used in FSM
+
 static int ValidInput(char in)
 {
     if (in >= '0' && in <= '9') {
@@ -422,4 +425,5 @@ static uint8_t AsciiToHex(char in)
             return (in - 87);
         }
     }
+    return STANDARD_ERROR;
 }
